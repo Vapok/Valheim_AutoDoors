@@ -1,21 +1,18 @@
 ﻿using HarmonyLib;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using UnityEngine;
-
-using Logger = BepInEx.Logging.Logger;
 
 namespace AutoDoors.GameClasses
 {
-    [HarmonyPatch(typeof(Player), "Update")]
+    [HarmonyPatch(typeof(Player), nameof(Player.Update))]
     public static class Player_Update_Patch
     {
         private static void Postfix(Player __instance)
         {
-            if (!AutoDoorPlugin.IsRunning)
+            var timeNow = DateTime.UtcNow;
+            bool updateIntervalPassed = (timeNow - AutoDoorPlugin.Instance.LastUpdate).TotalSeconds >= AutoDoorPlugin.Instance.Cfg.UpdateInterval;
+            
+            if (!AutoDoorPlugin.IsRunning || !updateIntervalPassed)
                 return;
 
             var player = Player.m_localPlayer;
@@ -23,10 +20,8 @@ namespace AutoDoors.GameClasses
                 return;
 
             bool validPlayer = player != null && !player.IsDead();
-            var timeNow = DateTime.UtcNow;
-            bool updateIntervalPassed = (timeNow - AutoDoorPlugin.Instance.LastUpdate).TotalSeconds >= AutoDoorPlugin.Instance.Cfg.UpdateInterval;
 
-            if (AutoDoorPlugin.Instance.IsActive && validPlayer && updateIntervalPassed)
+            if (AutoDoorPlugin.Instance.IsActive && validPlayer)
             {
                 AutoDoorPlugin.Instance.LastUpdate = timeNow;
 
@@ -41,12 +36,11 @@ namespace AutoDoors.GameClasses
                 {
                     if (!td.Update())
                         continue;
-
-                    var obj = UnityEngine.Object.FindObjectFromInstanceID(td.Id);
-                    if (obj is Door d)
+                    var door = Door_UpdateState_Patch.DoorCache[td.Id];
+                    if (door != null)
                     {
                         var prevInAutoRange = td.InAutoRange;
-                        var dsq = Vector3.SqrMagnitude(d.transform.position - player.transform.position);
+                        var dsq = Vector3.SqrMagnitude(door.transform.position - player.transform.position);
                         td.InAutoRange = dsq <= rsq;
                         if (td.InAutoRange)
                         {
@@ -56,12 +50,11 @@ namespace AutoDoors.GameClasses
                                 {
                                     if (!td.IsAutoOpened)
                                     {
-                                        d.Interact(player, false, false);
+                                        door.Interact(player, false, false);
                                     }
                                     else
                                     {
                                         td.IsManual = true;
-                                        //AutoDoorPlugin.InstanceLogger.LogInfo($"winkio.autodoors - door {td.Id} is now manual 1");
                                     }
                                 }
                                 else
@@ -69,7 +62,6 @@ namespace AutoDoors.GameClasses
                                     if (!prevInAutoRange)
                                     {
                                         td.IsManual = true;
-                                        //AutoDoorPlugin.InstanceLogger.LogInfo($"winkio.autodoors - door {td.Id} is now manual 2");
                                     }
                                     else
                                     {
@@ -83,7 +75,6 @@ namespace AutoDoors.GameClasses
                             if (!td.IsManual)
                             {
                                 td.SetState(0);
-                                //AutoDoorPlugin.InstanceLogger.LogInfo($"winkio.autodoors - auto close {td.Id}");
                             }
                             else
                             {

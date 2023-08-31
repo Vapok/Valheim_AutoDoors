@@ -1,5 +1,4 @@
 ﻿using BepInEx;
-using BepInEx.Configuration;
 using BepInEx.Logging;
 using HarmonyLib;
 using System;
@@ -8,7 +7,7 @@ using System.Reflection;
 
 namespace AutoDoors
 {
-    [BepInPlugin("winkio.autodoors", "Auto Doors", "1.0.0")]
+    [BepInPlugin("winkio.autodoors", "Auto Doors", "1.1.0")]
     public class AutoDoorPlugin : BaseUnityPlugin
     {
         #region Properties - Static
